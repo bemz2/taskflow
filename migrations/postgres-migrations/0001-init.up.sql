@@ -7,19 +7,26 @@ CREATE TABLE users(
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TYPE task_status AS ENUM (
+    'pending',
+    'in_progress',
+    'done',
+    'canceled'
+);
+
 CREATE TABLE tasks(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
-    status BOOLEAN NOT NULL DEFAULT FALSE,
+    status task_status NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at TIMESTAMPTZ
 );
 CREATE INDEX idx_tasks_user_id on tasks(user_id);
 
 CREATE TABLE task_analytics(
-    user_id UUID PRIMARY KEYREFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     tasks_created BIGINT DEFAULT 0,
     tasks_completed BIGINT DEFAULT 0,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

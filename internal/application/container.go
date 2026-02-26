@@ -4,34 +4,40 @@ import (
 	"context"
 	"taskflow/internal"
 	"taskflow/internal/client/postgres"
+	"taskflow/internal/lib/logger/logger"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Container struct {
+	Ctx    context.Context
 	Config *internal.AppConfig
+	Logger logger.Logger
 
 	Pool *pgxpool.Pool
 }
 
-func NewContainer(config *internal.AppConfig) *Container {
+func NewContainer(ctx context.Context, config internal.AppConfig) *Container {
 	return &Container{
-		Config: config,
+		Ctx:    ctx,
+		Config: &config,
 	}
 }
 
-func (c *Container) Init(ctx context.Context) error {
+func (c *Container) Init(ctx context.Context) (*Container, error) {
+	c.Logger = logger.NewSlogLogger()
 	pool, err := postgres.NewPool(ctx, c.Config.PostgresConfig)
 	if err != nil {
-		return err
+		return c, err
 	}
 	c.Pool = pool
 
-	return nil
+	return c, nil
 }
 
-func (c *Container) Close() {
+func (c *Container) Close() error {
 	if c.Pool != nil {
 		c.Pool.Close()
 	}
+	return nil
 }

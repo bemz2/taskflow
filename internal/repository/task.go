@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -15,25 +15,23 @@ type TaskModel struct {
 	UserID      uuid.UUID  `db:"user_id"`
 	Title       string     `db:"title"`
 	Description string     `db:"description"`
-	Status      bool       `db:"status"`
+	Status      string     `db:"status"`
 	CreatedAt   time.Time  `db:"created_at"`
 	CompletedAt *time.Time `db:"completed_at"`
 }
 
 type TaskRepository struct {
-	db     *pgxpool.Pool
-	logger *slog.Logger
+	db *pgxpool.Pool
 }
 
-func NewTaskRepository(db *pgxpool.Pool, logger *slog.Logger) *TaskRepository {
+func NewTaskRepository(db *pgxpool.Pool) *TaskRepository {
 	return &TaskRepository{
-		db:     db,
-		logger: logger,
+		db: db,
 	}
 }
 
 func (r *TaskRepository) CreateTask(ctx context.Context, t TaskModel) (TaskModel, error) {
-	const contextKey = "TaskRepositroy.CreateTask"
+	const contextKey = "TaskRepository.CreateTask"
 
 	if t.ID == uuid.Nil {
 		t.ID = uuid.New()
@@ -47,8 +45,7 @@ func (r *TaskRepository) CreateTask(ctx context.Context, t TaskModel) (TaskModel
 		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
-		r.logger.Error(contextKey, "failed to build query: %w", err)
-		return TaskModel{}, err
+		return TaskModel{}, fmt.Errorf("%s: failed to build sql: %w", contextKey, err)
 	}
 
 	var created TaskModel
@@ -64,9 +61,65 @@ func (r *TaskRepository) CreateTask(ctx context.Context, t TaskModel) (TaskModel
 			&created.CompletedAt,
 		)
 	if err != nil {
-		r.logger.Error(contextKey, "failed to QueryRow: %w", err)
-		return TaskModel{}, err
+		return TaskModel{}, fmt.Errorf("%s: failed to query row: %w", contextKey, err)
 	}
 
-	return created, nil
+	return created, err
+}
+
+func (r *TaskRepository) ListTasks(ctx context.Context, userID uuid.UUID) ([]TaskModel, error) {
+	const contextKey = "TaskRepository.ListTasks"
+
+	query := sq.
+		Select("id", "user_id", "title", "description", "status", "created_at", "completed_at").
+		From("tasks").
+		Where(sq.Eq{"user_id": userID}).
+		PlaceholderFormat(sq.Dollar)
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to build sql %w", contextKey, err)
+	}
+
+	rows, err := r.db.Query(ctx, sqlStr, args...)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to query: %w", contextKey, err)
+	}
+	defer rows.Close()
+
+	var tasks []TaskModel
+
+	for rows.Next() {
+		var t TaskModel
+		err = rows.Scan(
+			&t.ID,
+			&t.UserID,
+			&t.Title,
+			&t.Description,
+			&t.Status,
+			&t.CreatedAt,
+			&t.CompletedAt,
+		)
+		tasks = append(tasks, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: failed scan: %w", contextKey, err)
+	}
+	return tasks, err
+}
+
+func (r *TaskRepository) GetTask(ctx context.Context) {
+
+}
+
+func (r *TaskRepository) DeleteTask(ctx context.Context) {
+
+}
+
+func (r *TaskRepository) UpdateTask(ctx context.Context) {
+
+}
+
+func (r *TaskRepository) UpdateTaskStatus(ctx context.Context) {
+
 }

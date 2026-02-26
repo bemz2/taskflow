@@ -2,30 +2,44 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"taskflow/internal"
+	"taskflow/internal/application"
 	"time"
-
-	"github.com/labstack/echo/v5"
-	"github.com/labstack/echo/v5/middleware"
 )
 
 func main() {
-	e := echo.New()
-
-	e.Use(middleware.RequestLogger())
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	sc := echo.StartConfig{
-		Address:         ":1323",
-		GracefulTimeout: 5 * time.Second,
+	cfg, err := internal.NewConfig[internal.AppConfig](".env")
+	if err != nil {
+		panic(fmt.Errorf("failed to load config: %w", err))
 	}
 
-	if err := sc.Start(ctx, e); err != nil {
-		e.Logger.Error("failed to start public server", "error", err)
+	container, err := application.NewContainer(ctx, cfg).Init(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed to init container"))
+	}
+
+	publicServer, err := application.NewPublicServer(cfg, container.Logger).Configure(container)
+	if err != nil {
+		panic(fmt.Errorf("failed to configure public server: %w", err))
+	}
+
+	app := application.NewApp(publicServer, container)
+
+	if err = app.Run(ctx); err != nil {
+		container.Logger.Error(fmt.Sprintf("failed to run app: %v", err))
+	}
+	<-ctx.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err = app.ShutDown(ctx); err != nil {
+		container.Logger.Error(fmt.Sprintf("failed to shutdown app: %v", err))
 	}
 
 }
