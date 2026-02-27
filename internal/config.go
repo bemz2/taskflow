@@ -8,6 +8,7 @@ import (
 type AppConfig struct {
 	PublicServerConfig PublicServerConfig
 	PostgresConfig     PostgresConfig
+	AuthConfig         AuthConfig
 }
 
 type PublicServerConfig struct {
@@ -22,6 +23,11 @@ type PostgresConfig struct {
 	DBUser     string `env:"POSTGRES_USER"`
 	DBPassword string `env:"POSTGRES_PASSWORD"`
 	DBSSLMode  string `env:"POSTGRES_SSLMODE"`
+}
+
+type AuthConfig struct {
+	JWTSecret          string `env:"JWT_SECRET" envDefault:"taskflow-dev-secret"`
+	JWTExpirationHours int    `env:"JWT_EXPIRATION_HOURS" envDefault:"24"`
 }
 
 func NewConfig[T any](files ...string) (T, error) {

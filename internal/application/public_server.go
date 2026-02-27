@@ -78,17 +78,25 @@ func (s *PublicServer) Echo() *echo.Echo {
 func (s *PublicServer) v1(container *Container) {
 	v1 := s.echo.Group(APIV1Version)
 
+	registerHandler := container.AuthHandler.Register
+	loginHandler := container.AuthHandler.Login
+	createUserHandler := container.UserHandler.Create
+	meHandler := container.UserHandler.Me
 	listTaskHandler := container.TaskHandler.List
 	createTaskHandler := container.TaskHandler.Create
 	getTaskHandler := container.TaskHandler.Get
 	changeTaskStatusHandler := container.TaskHandler.ChangeStatus
 	deleteTaskHandler := container.TaskHandler.Delete
 
-	devM := middleware2.DevUserMiddleware
+	authM := middleware2.AuthMiddleware(container.TokenService)
 
-	v1.GET("/tasks", listTaskHandler, devM)
-	v1.POST("/task", createTaskHandler, devM)
-	v1.GET("/task/:id", getTaskHandler, devM)
-	v1.PATCH("/tasks/:id/status", changeTaskStatusHandler, devM)
-	v1.DELETE("/tasks/:id", deleteTaskHandler, devM)
+	v1.POST("/auth/register", registerHandler)
+	v1.POST("/auth/login", loginHandler)
+	v1.POST("/users", createUserHandler)
+	v1.GET("/me", meHandler, authM)
+	v1.GET("/tasks", listTaskHandler, authM)
+	v1.POST("/task", createTaskHandler, authM)
+	v1.GET("/task/:id", getTaskHandler, authM)
+	v1.PATCH("/tasks/:id/status", changeTaskStatusHandler, authM)
+	v1.DELETE("/tasks/:id", deleteTaskHandler, authM)
 }
