@@ -4,6 +4,7 @@ import (
 	"context"
 	"taskflow/internal"
 	"taskflow/internal/client/postgres"
+	redis2 "taskflow/internal/client/redis"
 	"taskflow/internal/http/handler"
 	"taskflow/internal/lib/logger/logger"
 	"taskflow/internal/repository/task"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type Container struct {
@@ -19,7 +21,8 @@ type Container struct {
 	Config *internal.AppConfig
 	Logger logger.Logger
 
-	Pool *pgxpool.Pool
+	Pool  *pgxpool.Pool
+	Redis *redis.Client
 
 	TokenService *service.TokenService
 
@@ -49,6 +52,13 @@ func (c *Container) Init(ctx context.Context) (*Container, error) {
 		return c, err
 	}
 	c.Pool = pool
+
+	rdb, err := redis2.NewClient(c.Config.RedisConfig)
+	if err != nil {
+		return nil, err
+	}
+	c.Redis = rdb
+
 	c.TokenService = service.NewTokenService(
 		c.Config.AuthConfig.JWTSecret,
 		time.Duration(c.Config.AuthConfig.JWTExpirationHours)*time.Hour,
@@ -74,5 +84,7 @@ func (c *Container) Close() error {
 	if c.Pool != nil {
 		c.Pool.Close()
 	}
+
+	c.Redis.Close()
 	return nil
 }

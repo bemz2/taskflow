@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -24,6 +25,7 @@ type TaskRepository interface {
 
 type TaskService struct {
 	TaskRepository TaskRepository
+	Redis          *redis.Client
 }
 
 func NewTaskService(repository TaskRepository) *TaskService {

@@ -8,6 +8,7 @@ import (
 type AppConfig struct {
 	PublicServerConfig PublicServerConfig
 	PostgresConfig     PostgresConfig
+	RedisConfig        RedisConfig
 	AuthConfig         AuthConfig
 }
 
@@ -23,6 +24,13 @@ type PostgresConfig struct {
 	DBUser     string `env:"POSTGRES_USER"`
 	DBPassword string `env:"POSTGRES_PASSWORD"`
 	DBSSLMode  string `env:"POSTGRES_SSLMODE"`
+}
+
+type RedisConfig struct {
+	Host     string `env:"REDIS_HOST,required"`
+	Port     int    `env:"REDIS_PORT" envDefault:"6379"`
+	Password string `env:"REDIS_PASSWORD"`
+	DB       int    `env:"REDIS_DB" envDefault:"0"`
 }
 
 type AuthConfig struct {
