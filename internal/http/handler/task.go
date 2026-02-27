@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"taskflow/internal/service"
@@ -92,6 +93,27 @@ func (h *TaskHandler) ChangeStatus(c echo.Context) error {
 
 	return c.NoContent(http.StatusNoContent)
 }
+
+func (h *TaskHandler) Delete(c echo.Context) error {
+	idParam := c.Param("id")
+
+	taskID, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, "invalid id")
+	}
+
+	userID := c.Get("userID").(uuid.UUID)
+
+	if err := h.service.DeleteTask(c.Request().Context(), userID, taskID); err != nil {
+		if errors.Is(err, service.ErrTaskNotFound) {
+			return c.JSON(http.StatusNotFound, "task not found")
+		}
+		return c.JSON(http.StatusBadRequest, err.Error())
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
 func (h *TaskHandler) List(c echo.Context) error {
 	userID := c.Get("userID").(uuid.UUID)
 

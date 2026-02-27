@@ -82,6 +82,7 @@ func (s *PublicServer) v1(container *Container) {
 	createTaskHandler := container.TaskHandler.Create
 	getTaskHandler := container.TaskHandler.Get
 	changeTaskStatusHandler := container.TaskHandler.ChangeStatus
+	deleteTaskHandler := container.TaskHandler.Delete
 
 	devM := middleware2.DevUserMiddleware
 
@@ -89,4 +90,5 @@ func (s *PublicServer) v1(container *Container) {
 	v1.POST("/task", createTaskHandler, devM)
 	v1.GET("/task/:id", getTaskHandler, devM)
 	v1.PATCH("/tasks/:id/status", changeTaskStatusHandler, devM)
+	v1.DELETE("/tasks/:id", deleteTaskHandler, devM)
 }
