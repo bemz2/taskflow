@@ -68,6 +68,48 @@ func TestUserServiceGetUserMapsRepositoryError(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
+func TestUserServiceGetUserByEmailMapsRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	repo := mocks.NewUserRepository(t)
+	svc := NewUserService(repo)
+	ctx := context.Background()
+
+	repo.
+		On("GetByEmail", ctx, "user@example.com").
+		Return(domain.User{}, errors.New("db error")).
+		Once()
+
+	_, err := svc.GetUserByEmail(ctx, "user@example.com")
+
+	require.ErrorIs(t, err, ErrUserNotFound)
+	repo.AssertExpectations(t)
+}
+
+func TestUserServiceGetUserByEmailReturnsUser(t *testing.T) {
+	t.Parallel()
+
+	repo := mocks.NewUserRepository(t)
+	svc := NewUserService(repo)
+	ctx := context.Background()
+	expected := domain.User{
+		ID:           uuid.New(),
+		Email:        "user@example.com",
+		PasswordHash: "hash",
+	}
+
+	repo.
+		On("GetByEmail", ctx, "user@example.com").
+		Return(expected, nil).
+		Once()
+
+	user, err := svc.GetUserByEmail(ctx, "user@example.com")
+
+	require.NoError(t, err)
+	require.Equal(t, expected, user)
+	repo.AssertExpectations(t)
+}
+
 func TestUserServiceEnsureDevUser(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,7 @@
 GO ?= go
 MOCKERY ?= mockery
 GOMODCACHE ?=
+MOCKERY_GOCACHE ?= /tmp/taskflow-mockery-go-build
 GOENV :=
 GO_FILES := $(shell rg --files -g '*.go' .)
 BIN_DIR := $(CURDIR)/bin
@@ -14,7 +15,7 @@ endif
 setup:
 	$(if $(strip $(GOMODCACHE)),mkdir -p $(GOMODCACHE),true)
 	$(GOENV) $(GO) mod download
-	$(GOENV) $(GO) install github.com/vektra/mockery/v2@latest
+	$(GOENV) $(GO) install github.com/vektra/mockery/v2@v2.53.6
 
 tidy:
 	$(GOENV) $(GO) mod tidy
@@ -30,8 +31,8 @@ test-unit:
 
 mocks:
 	mkdir -p mocks
-	$(MOCKERY) --dir internal/service --name TaskRepository --output mocks --outpkg mocks --filename task_repository.go --structname TaskRepository
-	$(MOCKERY) --dir internal/service --name UserRepository --output mocks --outpkg mocks --filename user_repository.go --structname UserRepository
+	GOCACHE=$(MOCKERY_GOCACHE) $(MOCKERY) --config .mockery.yaml --dir internal/service --name TaskRepository --output mocks --outpkg mocks --filename task_repository.go --structname TaskRepository
+	GOCACHE=$(MOCKERY_GOCACHE) $(MOCKERY) --config .mockery.yaml --dir internal/service --name UserRepository --output mocks --outpkg mocks --filename user_repository.go --structname UserRepository
 
 build: build-api build-worker build-migrations
 

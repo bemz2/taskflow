@@ -47,3 +47,18 @@ func TestTokenServiceParseRejectsExpiredToken(t *testing.T) {
 
 	require.ErrorIs(t, err, ErrTokenExpired)
 }
+
+func TestTokenServiceParseRejectsTamperedToken(t *testing.T) {
+	t.Parallel()
+
+	svc := NewTokenService("test-secret", time.Minute)
+	userID := uuid.New()
+	token, err := svc.Issue(userID)
+	require.NoError(t, err)
+
+	tampered := token[:len(token)-1] + "x"
+
+	_, err = svc.Parse(tampered)
+
+	require.ErrorIs(t, err, ErrInvalidToken)
+}
