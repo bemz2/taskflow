@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"taskflow/internal"
+	middleware2 "taskflow/internal/http/middleware"
 	"taskflow/internal/lib/logger/logger"
 
 	"github.com/labstack/echo/v4"
@@ -78,8 +78,15 @@ func (s *PublicServer) Echo() *echo.Echo {
 func (s *PublicServer) v1(container *Container) {
 	v1 := s.echo.Group(APIV1Version)
 
-	v1.GET("/tasks", func(c echo.Context) error {
-		fmt.Println("test")
-		return c.JSON(http.StatusOK, "OK")
-	})
+	listTaskHandler := container.TaskHandler.List
+	createTaskHandler := container.TaskHandler.Create
+	getTaskHandler := container.TaskHandler.Get
+	changeTaskStatusHandler := container.TaskHandler.ChangeStatus
+
+	devM := middleware2.DevUserMiddleware
+
+	v1.GET("/tasks", listTaskHandler, devM)
+	v1.POST("/task", createTaskHandler, devM)
+	v1.GET("/task/:id", getTaskHandler, devM)
+	v1.PATCH("/tasks/:id/status", changeTaskStatusHandler, devM)
 }

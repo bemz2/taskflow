@@ -107,3 +107,10 @@ func (s *TaskService) DeleteTask(
 ) error {
 	return s.TaskRepository.Delete(ctx, taskID, userID)
 }
+func (s *TaskService) ListTasks(
+	ctx context.Context,
+	userID uuid.UUID,
+	filter domain.TaskFilter,
+) ([]domain.Task, error) {
+	return s.TaskRepository.List(ctx, userID, filter)
+}

@@ -4,7 +4,10 @@ import (
 	"context"
 	"taskflow/internal"
 	"taskflow/internal/client/postgres"
+	"taskflow/internal/http/handler"
 	"taskflow/internal/lib/logger/logger"
+	"taskflow/internal/repository/task"
+	"taskflow/internal/service"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -15,6 +18,10 @@ type Container struct {
 	Logger logger.Logger
 
 	Pool *pgxpool.Pool
+
+	TaskRepo    *task.TaskRepository
+	TaskService *service.TaskService
+	TaskHandler *handler.TaskHandler
 }
 
 func NewContainer(ctx context.Context, config internal.AppConfig) *Container {
@@ -31,6 +38,10 @@ func (c *Container) Init(ctx context.Context) (*Container, error) {
 		return c, err
 	}
 	c.Pool = pool
+
+	c.TaskRepo = task.NewTaskRepository(c.Pool)
+	c.TaskService = service.NewTaskService(c.TaskRepo)
+	c.TaskHandler = handler.NewTaskHandler(c.TaskService)
 
 	return c, nil
 }
