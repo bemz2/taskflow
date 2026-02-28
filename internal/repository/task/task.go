@@ -29,6 +29,13 @@ type TaskRepository struct {
 	db *pgxpool.Pool
 }
 
+var allowedSortColumns = map[string]string{
+	"created_at":   "created_at",
+	"title":        "title",
+	"status":       "status",
+	"completed_at": "completed_at",
+}
+
 func NewTaskRepository(db *pgxpool.Pool) *TaskRepository {
 	return &TaskRepository{
 		db: db,
@@ -206,7 +213,12 @@ func (r *TaskRepository) List(
 		builder = builder.Where("title ILIKE ?", "%"+*filter.Search+"%")
 	}
 
-	builder = builder.OrderBy(fmt.Sprintf("%s %s", filter.SortBy, filter.SortDir))
+	sortColumn := allowedSortColumns[filter.SortBy]
+	if sortColumn == "" {
+		sortColumn = allowedSortColumns["created_at"]
+	}
+
+	builder = builder.OrderBy(fmt.Sprintf("%s %s", sortColumn, filter.SortDir))
 
 	query, args, err := builder.ToSql()
 	if err != nil {

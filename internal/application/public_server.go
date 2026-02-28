@@ -89,6 +89,7 @@ func (s *PublicServer) v1(container *Container) {
 	getTaskHandler := container.TaskHandler.Get
 	changeTaskStatusHandler := container.TaskHandler.ChangeStatus
 	deleteTaskHandler := container.TaskHandler.Delete
+	getAnalyticsHandler := container.AnalyticsHandler.Get
 
 	authM := middleware2.AuthMiddleware(container.TokenService)
 
@@ -101,4 +102,5 @@ func (s *PublicServer) v1(container *Container) {
 	v1.GET("/task/:id", getTaskHandler, authM)
 	v1.PATCH("/tasks/:id/status", changeTaskStatusHandler, authM)
 	v1.DELETE("/tasks/:id", deleteTaskHandler, authM)
+	v1.GET("/analytics", getAnalyticsHandler, authM)
 }

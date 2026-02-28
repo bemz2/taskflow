@@ -3,10 +3,12 @@ package application
 import (
 	"context"
 	"taskflow/internal"
+	kafka2 "taskflow/internal/client/kafka"
 	"taskflow/internal/client/postgres"
 	redis2 "taskflow/internal/client/redis"
 	"taskflow/internal/http/handler"
 	"taskflow/internal/lib/logger/logger"
+	analyticsrepo "taskflow/internal/repository/analytics"
 	"taskflow/internal/repository/task"
 	userrepo "taskflow/internal/repository/user"
 	"taskflow/internal/service"
@@ -24,7 +26,9 @@ type Container struct {
 	Pool  *pgxpool.Pool
 	Redis *redis.Client
 
-	TokenService *service.TokenService
+	TokenService  *service.TokenService
+	Analytics     service.AnalyticsPublisher
+	AnalyticsRepo *analyticsrepo.Repository
 
 	UserRepo    *userrepo.UserRepository
 	UserService *service.UserService
@@ -36,6 +40,9 @@ type Container struct {
 	TaskRepo    *task.TaskRepository
 	TaskService *service.TaskService
 	TaskHandler *handler.TaskHandler
+
+	TaskAnalyticsService *service.TaskAnalyticsService
+	AnalyticsHandler     *handler.AnalyticsHandler
 }
 
 func NewContainer(ctx context.Context, config internal.AppConfig) *Container {
@@ -63,6 +70,7 @@ func (c *Container) Init(ctx context.Context) (*Container, error) {
 		c.Config.AuthConfig.JWTSecret,
 		time.Duration(c.Config.AuthConfig.JWTExpirationHours)*time.Hour,
 	)
+	c.Analytics = service.NewKafkaAnalyticsPublisher(kafka2.NewWriter(c.Config.KafkaConfig))
 
 	c.UserRepo = userrepo.NewUserRepository(c.Pool)
 	c.UserService = service.NewUserService(c.UserRepo)
@@ -75,7 +83,10 @@ func (c *Container) Init(ctx context.Context) (*Container, error) {
 
 	c.TaskRepo = task.NewTaskRepository(c.Pool)
 	c.TaskService = service.NewTaskService(c.TaskRepo, service.NewRedisTaskCache(c.Redis))
-	c.TaskHandler = handler.NewTaskHandler(c.TaskService)
+	c.TaskHandler = handler.NewTaskHandler(c.TaskService, c.Analytics)
+	c.AnalyticsRepo = analyticsrepo.NewRepository(c.Pool)
+	c.TaskAnalyticsService = service.NewTaskAnalyticsService(c.AnalyticsRepo)
+	c.AnalyticsHandler = handler.NewAnalyticsHandler(c.TaskAnalyticsService)
 
 	return c, nil
 }
@@ -85,6 +96,11 @@ func (c *Container) Close() error {
 		c.Pool.Close()
 	}
 
-	c.Redis.Close()
+	if c.Redis != nil {
+		c.Redis.Close()
+	}
+	if c.Analytics != nil {
+		_ = c.Analytics.Close()
+	}
 	return nil
 }

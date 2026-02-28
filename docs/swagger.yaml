@@ -33,6 +33,19 @@ definitions:
       password:
         type: string
     type: object
+  dto.TaskAnalyticsResponse:
+    properties:
+      completion_rate:
+        type: number
+      last_updated_at:
+        type: string
+      tasks_completed:
+        type: integer
+      tasks_created:
+        type: integer
+      tasks_open:
+        type: integer
+    type: object
   dto.TaskResponse:
     properties:
       completed_at:
@@ -64,6 +77,30 @@ info:
   title: Taskflow API
   version: "1.0"
 paths:
+  /analytics:
+    get:
+      description: Returns per-user task analytics produced by the Kafka worker and
+        stored in task_analytics.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TaskAnalyticsResponse'
+        "401":
+          description: missing token, invalid token, or invalid auth context
+          schema:
+            type: string
+        "500":
+          description: unexpected server error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get task analytics
+      tags:
+      - analytics
   /auth/login:
     post:
       consumes:
@@ -225,7 +262,7 @@ paths:
         - pending
         - in_progress
         - done
-        - cancelled
+        - canceled
         in: query
         name: status
         type: string

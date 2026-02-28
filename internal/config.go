@@ -9,6 +9,7 @@ type AppConfig struct {
 	PublicServerConfig PublicServerConfig
 	PostgresConfig     PostgresConfig
 	RedisConfig        RedisConfig
+	KafkaConfig        KafkaConfig
 	AuthConfig         AuthConfig
 }
 
@@ -31,6 +32,13 @@ type RedisConfig struct {
 	Port     int    `env:"REDIS_PORT" envDefault:"6379"`
 	Password string `env:"REDIS_PASSWORD"`
 	DB       int    `env:"REDIS_DB" envDefault:"0"`
+}
+
+type KafkaConfig struct {
+	Host             string `env:"KAFKA_HOST" envDefault:"localhost"`
+	Port             int    `env:"KAFKA_PORT" envDefault:"9094"`
+	Topic            string `env:"KAFKA_TOPIC" envDefault:"taskflow.analytics"`
+	AnalyticsGroupID string `env:"KAFKA_ANALYTICS_GROUP_ID" envDefault:"taskflow-analytics"`
 }
 
 type AuthConfig struct {

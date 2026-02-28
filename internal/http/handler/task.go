@@ -4,7 +4,9 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	middleware2 "taskflow/internal/http/middleware"
 	"taskflow/internal/service"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -14,11 +16,19 @@ import (
 )
 
 type TaskHandler struct {
-	service *service.TaskService
+	service   *service.TaskService
+	analytics service.AnalyticsPublisher
 }
 
-func NewTaskHandler(service *service.TaskService) *TaskHandler {
-	return &TaskHandler{service: service}
+func NewTaskHandler(taskService *service.TaskService, analytics service.AnalyticsPublisher) *TaskHandler {
+	if analytics == nil {
+		analytics = service.NewNoopAnalyticsPublisher()
+	}
+
+	return &TaskHandler{
+		service:   taskService,
+		analytics: analytics,
+	}
 }
 
 // Create godoc
@@ -40,7 +50,10 @@ func (h *TaskHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "invalid request")
 	}
 
-	userID := c.Get("userID").(uuid.UUID)
+	userID, ok := middleware2.UserIDFromContext(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, "invalid auth context")
+	}
 
 	task, err := h.service.CreateTask(
 		c.Request().Context(),
@@ -51,6 +64,13 @@ func (h *TaskHandler) Create(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
+
+	_ = h.analytics.PublishTaskEvent(c.Request().Context(), service.TaskEvent{
+		Type:      service.TaskEventCreated,
+		UserID:    userID,
+		TaskID:    task.ID,
+		CreatedAt: time.Now().UTC(),
+	})
 
 	return c.JSON(http.StatusCreated, toResponse(task))
 }
@@ -75,7 +95,10 @@ func (h *TaskHandler) Get(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "invalid id")
 	}
 
-	userID := c.Get("userID").(uuid.UUID)
+	userID, ok := middleware2.UserIDFromContext(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, "invalid auth context")
+	}
 
 	task, err := h.service.GetTask(
 		c.Request().Context(),
@@ -115,9 +138,12 @@ func (h *TaskHandler) ChangeStatus(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "invalid request")
 	}
 
-	userID := c.Get("userID").(uuid.UUID)
+	userID, ok := middleware2.UserIDFromContext(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, "invalid auth context")
+	}
 
-	status := domain.Status(req.Status)
+	status := domain.NormalizeStatus(domain.Status(req.Status))
 
 	if err := h.service.ChangeStatus(
 		c.Request().Context(),
@@ -126,6 +152,15 @@ func (h *TaskHandler) ChangeStatus(c echo.Context) error {
 		status,
 	); err != nil {
 		return c.JSON(http.StatusBadRequest, err.Error())
+	}
+
+	if status == domain.StatusDone {
+		_ = h.analytics.PublishTaskEvent(c.Request().Context(), service.TaskEvent{
+			Type:      service.TaskEventCompleted,
+			UserID:    userID,
+			TaskID:    taskID,
+			CreatedAt: time.Now().UTC(),
+		})
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -150,7 +185,10 @@ func (h *TaskHandler) Delete(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "invalid id")
 	}
 
-	userID := c.Get("userID").(uuid.UUID)
+	userID, ok := middleware2.UserIDFromContext(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, "invalid auth context")
+	}
 
 	if err := h.service.DeleteTask(c.Request().Context(), userID, taskID); err != nil {
 		if errors.Is(err, service.ErrTaskNotFound) {
@@ -158,6 +196,13 @@ func (h *TaskHandler) Delete(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
+
+	_ = h.analytics.PublishTaskEvent(c.Request().Context(), service.TaskEvent{
+		Type:      service.TaskEventDeleted,
+		UserID:    userID,
+		TaskID:    taskID,
+		CreatedAt: time.Now().UTC(),
+	})
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -170,7 +215,7 @@ func (h *TaskHandler) Delete(c echo.Context) error {
 // @Security BearerAuth
 // @Param limit query int false "Maximum number of tasks to return"
 // @Param offset query int false "Pagination offset"
-// @Param status query string false "Task status filter" Enums(pending,in_progress,done,cancelled)
+// @Param status query string false "Task status filter" Enums(pending,in_progress,done,canceled)
 // @Param search query string false "Case-insensitive title search"
 // @Param sort_by query string false "Sort column"
 // @Param sort_dir query string false "Sort direction" Enums(asc,desc)
@@ -179,7 +224,10 @@ func (h *TaskHandler) Delete(c echo.Context) error {
 // @Failure 500 {string} string "unexpected server error"
 // @Router /tasks [get]
 func (h *TaskHandler) List(c echo.Context) error {
-	userID := c.Get("userID").(uuid.UUID)
+	userID, ok := middleware2.UserIDFromContext(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, "invalid auth context")
+	}
 
 	var filter domain.TaskFilter
 
@@ -199,7 +247,7 @@ func (h *TaskHandler) List(c echo.Context) error {
 
 	// status
 	if status := c.QueryParam("status"); status != "" {
-		s := domain.Status(status)
+		s := domain.NormalizeStatus(domain.Status(status))
 		filter.Status = &s
 	}
 

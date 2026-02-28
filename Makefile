@@ -2,13 +2,14 @@ GO ?= go
 MOCKERY ?= mockery
 SWAG ?= swag
 DOCKER_COMPOSE ?= docker compose
+OPEN ?= open
 GOMODCACHE ?=
 MOCKERY_GOCACHE ?= /tmp/taskflow-mockery-go-build
 GOENV :=
 GO_FILES := $(shell rg --files -g '*.go' .)
 BIN_DIR := $(CURDIR)/bin
 
-.PHONY: setup ensure-env infra-up infra-down migrate run run-worker tidy fmt test test-unit mocks swagger build build-api build-worker build-migrations clean
+.PHONY: setup ensure-env infra-up infra-down migrate run run-worker open-swagger tidy fmt test test-unit mocks swagger build build-api build-worker build-migrations clean
 
 ifneq ($(strip $(GOMODCACHE)),)
 GOENV += GOMODCACHE=$(GOMODCACHE)
@@ -27,7 +28,7 @@ ensure-env:
 	test -f .env || cp .env.sample .env
 
 infra-up:
-	$(DOCKER_COMPOSE) up -d postgres redis
+	$(DOCKER_COMPOSE) up -d postgres redis kafka
 
 infra-down:
 	$(DOCKER_COMPOSE) down
@@ -40,6 +41,10 @@ run:
 
 run-worker:
 	$(GOENV) $(GO) run ./cmd/taskflow-worker
+
+open-swagger:
+	PORT=$$(grep -E '^PUBLIC_SERVER_PORT=' .env 2>/dev/null | cut -d= -f2); \
+	$(OPEN) "http://localhost:$${PORT:-1323}/swagger/index.html"
 
 tidy:
 	$(GOENV) $(GO) mod tidy

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"taskflow/internal/service"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -26,4 +27,13 @@ func AuthMiddleware(tokenService *service.TokenService) echo.MiddlewareFunc {
 			return next(c)
 		}
 	}
+}
+
+func UserIDFromContext(c echo.Context) (uuid.UUID, bool) {
+	userID, ok := c.Get("userID").(uuid.UUID)
+	if !ok || userID == uuid.Nil {
+		return uuid.Nil, false
+	}
+
+	return userID, true
 }

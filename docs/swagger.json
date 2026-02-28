@@ -11,6 +11,43 @@
     },
     "basePath": "/api/v1",
     "paths": {
+        "/analytics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns per-user task analytics produced by the Kafka worker and stored in task_analytics.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get task analytics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TaskAnalyticsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "missing token, invalid token, or invalid auth context",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "unexpected server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Verifies user credentials and returns an authentication token.",
@@ -265,7 +302,7 @@
                             "pending",
                             "in_progress",
                             "done",
-                            "cancelled"
+                            "canceled"
                         ],
                         "type": "string",
                         "description": "Task status filter",
@@ -517,6 +554,26 @@
                 },
                 "password": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.TaskAnalyticsResponse": {
+            "type": "object",
+            "properties": {
+                "completion_rate": {
+                    "type": "number"
+                },
+                "last_updated_at": {
+                    "type": "string"
+                },
+                "tasks_completed": {
+                    "type": "integer"
+                },
+                "tasks_created": {
+                    "type": "integer"
+                },
+                "tasks_open": {
+                    "type": "integer"
                 }
             }
         },

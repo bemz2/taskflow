@@ -14,7 +14,7 @@ const (
 	StatusPending    Status = "pending"
 	StatusInProgress Status = "in_progress"
 	StatusDone       Status = "done"
-	StatusCancelled  Status = "cancelled"
+	StatusCancelled  Status = "canceled"
 )
 
 var (
@@ -56,6 +56,10 @@ func (f *TaskFilter) Normalize() {
 	if f.SortDir != "asc" && f.SortDir != "desc" {
 		f.SortDir = "desc"
 	}
+	if f.Status != nil {
+		normalized := NormalizeStatus(*f.Status)
+		f.Status = &normalized
+	}
 }
 
 func NewTask(userID uuid.UUID, title, description string) (Task, error) {
@@ -83,6 +87,8 @@ func NewTask(userID uuid.UUID, title, description string) (Task, error) {
 }
 
 func (s Status) IsValid() bool {
+	s = NormalizeStatus(s)
+
 	switch s {
 	case StatusPending, StatusInProgress, StatusDone, StatusCancelled:
 		return true
@@ -92,6 +98,8 @@ func (s Status) IsValid() bool {
 }
 
 func NewTaskFromStorage(id, userID uuid.UUID, title, description string, status Status, createdAt time.Time, completedAt *time.Time) (Task, error) {
+	status = NormalizeStatus(status)
+
 	if !status.IsValid() {
 		return Task{}, ErrInvalidStatus
 	}
@@ -130,6 +138,8 @@ func (t *Task) Rename(newTitle string) error {
 }
 
 func (t *Task) ChangeStatus(to Status, now time.Time) error {
+	to = NormalizeStatus(to)
+
 	if !to.IsValid() {
 		return ErrInvalidStatus
 	}
@@ -152,6 +162,14 @@ func (t *Task) ChangeStatus(to Status, now time.Time) error {
 func (t *Task) ChangeDescription(desc string) {
 	desc = strings.TrimSpace(desc)
 	t.Description = desc
+}
+
+func NormalizeStatus(status Status) Status {
+	if status == "cancelled" {
+		return StatusCancelled
+	}
+
+	return status
 }
 
 func isAllowedTransition(from, to Status) bool {

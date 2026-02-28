@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"taskflow/internal/domain"
 	"taskflow/internal/http/dto"
+	middleware2 "taskflow/internal/http/middleware"
 	"taskflow/internal/service"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -53,7 +53,10 @@ func (h *UserHandler) Create(c echo.Context) error {
 // @Failure 404 {string} string "user not found"
 // @Router /me [get]
 func (h *UserHandler) Me(c echo.Context) error {
-	userID := c.Get("userID").(uuid.UUID)
+	userID, ok := middleware2.UserIDFromContext(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, "invalid auth context")
+	}
 
 	user, err := h.service.GetUser(c.Request().Context(), userID)
 	if err != nil {
