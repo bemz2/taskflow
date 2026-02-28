@@ -93,6 +93,20 @@ PostgreSQL
 - Graceful shutdown по `SIGINT` / `SIGTERM`
 - Запуск SQL миграций через `cmd/postgres-migrations`
 
+## UI
+
+Для сервиса есть отдельный UI-репозиторий:
+
+<https://github.com/bemz2/taskflow-ui>
+
+Превью панели:
+
+![Панель Taskflow UI](/Users/bemz/GolandProjects/taskflow/docs/screenshots/dashboard-preview.png)
+
+Превью логов worker:
+
+![Логи worker](/Users/bemz/GolandProjects/taskflow/docs/screenshots/worker-log-preview.png)
+
 ## Быстрый старт
 
 ### Требования
