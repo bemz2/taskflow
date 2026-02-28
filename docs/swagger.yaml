@@ -1,0 +1,372 @@
+basePath: /api/v1
+definitions:
+  dto.AuthRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  dto.AuthResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserResponse'
+    type: object
+  dto.ChangeStatusRequest:
+    properties:
+      status:
+        type: string
+    type: object
+  dto.CreateTaskRequest:
+    properties:
+      description:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  dto.TaskResponse:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Task management HTTP API with JWT authentication, PostgreSQL persistence,
+    and Redis-backed task caching.
+  title: Taskflow API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Verifies user credentials and returns an authentication token.
+      parameters:
+      - description: Login payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "400":
+          description: invalid request or invalid credentials
+          schema:
+            type: string
+      summary: Authenticate user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account and returns an authentication token
+        for the created user.
+      parameters:
+      - description: Registration payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "400":
+          description: invalid request or validation error
+          schema:
+            type: string
+      summary: Register a new user
+      tags:
+      - auth
+  /me:
+    get:
+      description: Returns the currently authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "401":
+          description: missing or invalid token
+          schema:
+            type: string
+        "404":
+          description: user not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - users
+  /task:
+    post:
+      consumes:
+      - application/json
+      description: Creates a task for the authenticated user.
+      parameters:
+      - description: Task creation payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.TaskResponse'
+        "400":
+          description: invalid request or validation error
+          schema:
+            type: string
+        "401":
+          description: missing or invalid token
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create task
+      tags:
+      - tasks
+  /task/{id}:
+    get:
+      description: Returns a single task that belongs to the authenticated user. The
+        service checks Redis before querying PostgreSQL.
+      parameters:
+      - description: Task ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TaskResponse'
+        "400":
+          description: invalid task id
+          schema:
+            type: string
+        "401":
+          description: missing or invalid token
+          schema:
+            type: string
+        "404":
+          description: task not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get task by ID
+      tags:
+      - tasks
+  /tasks:
+    get:
+      description: Returns tasks for the authenticated user with optional pagination,
+        filtering, search, and sorting.
+      parameters:
+      - description: Maximum number of tasks to return
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Task status filter
+        enum:
+        - pending
+        - in_progress
+        - done
+        - cancelled
+        in: query
+        name: status
+        type: string
+      - description: Case-insensitive title search
+        in: query
+        name: search
+        type: string
+      - description: Sort column
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort direction
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_dir
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.TaskResponse'
+            type: array
+        "401":
+          description: missing or invalid token
+          schema:
+            type: string
+        "500":
+          description: unexpected server error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: List tasks
+      tags:
+      - tasks
+  /tasks/{id}:
+    delete:
+      description: Deletes a task that belongs to the authenticated user.
+      parameters:
+      - description: Task ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: invalid task id
+          schema:
+            type: string
+        "401":
+          description: missing or invalid token
+          schema:
+            type: string
+        "404":
+          description: task not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete task
+      tags:
+      - tasks
+  /tasks/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the status of a task that belongs to the authenticated
+        user.
+      parameters:
+      - description: Task ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChangeStatusRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: invalid request, invalid id, or invalid transition
+          schema:
+            type: string
+        "401":
+          description: missing or invalid token
+          schema:
+            type: string
+        "404":
+          description: task not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Change task status
+      tags:
+      - tasks
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account without issuing a token.
+      parameters:
+      - description: User creation payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: invalid request or validation error
+          schema:
+            type: string
+      summary: Create user
+      tags:
+      - users
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: 'Use the format: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -20,10 +20,30 @@ func NewAuthHandler(authService *service.AuthService, userService *service.UserS
 	}
 }
 
+// Register godoc
+// @Summary Register a new user
+// @Description Creates a new user account and returns an authentication token for the created user.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.AuthRequest true "Registration payload"
+// @Success 200 {object} dto.AuthResponse
+// @Failure 400 {string} string "invalid request or validation error"
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(c echo.Context) error {
 	return h.authenticate(c, true)
 }
 
+// Login godoc
+// @Summary Authenticate user
+// @Description Verifies user credentials and returns an authentication token.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.AuthRequest true "Login payload"
+// @Success 200 {object} dto.AuthResponse
+// @Failure 400 {string} string "invalid request or invalid credentials"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(c echo.Context) error {
 	return h.authenticate(c, false)
 }

@@ -74,7 +74,7 @@ func (c *Container) Init(ctx context.Context) (*Container, error) {
 	}
 
 	c.TaskRepo = task.NewTaskRepository(c.Pool)
-	c.TaskService = service.NewTaskService(c.TaskRepo)
+	c.TaskService = service.NewTaskService(c.TaskRepo, service.NewRedisTaskCache(c.Redis))
 	c.TaskHandler = handler.NewTaskHandler(c.TaskService)
 
 	return c, nil

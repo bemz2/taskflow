@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ func TestTaskServiceCreateTask(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	svc := NewTaskService(repo, nil)
 	ctx := context.Background()
 	userID := uuid.New()
 
@@ -45,7 +46,7 @@ func TestTaskServiceGetTaskReturnsNotFound(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	svc := NewTaskService(repo, nil)
 	ctx := context.Background()
 	userID := uuid.New()
 	taskID := uuid.New()
@@ -65,7 +66,7 @@ func TestTaskServiceGetTaskReturnsTask(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	svc := NewTaskService(repo, nil)
 	ctx := context.Background()
 	userID := uuid.New()
 	taskID := uuid.New()
@@ -89,11 +90,78 @@ func TestTaskServiceGetTaskReturnsTask(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
+func TestTaskServiceGetTaskReturnsCachedTask(t *testing.T) {
+	t.Parallel()
+
+	repo := mocks.NewTaskRepository(t)
+	cache := mocks.NewTaskCache(t)
+	svc := NewTaskService(repo, cache)
+	ctx := context.Background()
+	userID := uuid.New()
+	taskID := uuid.New()
+	cachedTask := domain.Task{
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Cached",
+		Status:    domain.StatusPending,
+		CreatedAt: mockTime(),
+	}
+	payload, err := json.Marshal(cachedTask)
+	require.NoError(t, err)
+
+	cache.EXPECT().
+		Get(ctx, svc.taskCacheKey(userID, taskID)).
+		Return(string(payload), nil).
+		Once()
+
+	task, err := svc.GetTask(ctx, userID, taskID)
+
+	require.NoError(t, err)
+	require.Equal(t, cachedTask, task)
+	repo.AssertNotCalled(t, "Get", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestTaskServiceGetTaskCachesRepositoryResult(t *testing.T) {
+	t.Parallel()
+
+	repo := mocks.NewTaskRepository(t)
+	cache := mocks.NewTaskCache(t)
+	svc := NewTaskService(repo, cache)
+	ctx := context.Background()
+	userID := uuid.New()
+	taskID := uuid.New()
+	expected := domain.Task{
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Task",
+		Status:    domain.StatusPending,
+		CreatedAt: mockTime(),
+	}
+
+	cache.EXPECT().
+		Get(ctx, svc.taskCacheKey(userID, taskID)).
+		Return("", errors.New("cache miss")).
+		Once()
+	repo.EXPECT().
+		Get(ctx, taskID, userID).
+		Return(expected, nil).
+		Once()
+	cache.EXPECT().
+		Set(ctx, svc.taskCacheKey(userID, taskID), mock.Anything, taskCacheTTL).
+		Return(nil).
+		Once()
+
+	task, err := svc.GetTask(ctx, userID, taskID)
+
+	require.NoError(t, err)
+	require.Equal(t, expected, task)
+}
+
 func TestTaskServiceChangeStatusUpdatesTask(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	svc := NewTaskService(repo, nil)
 	ctx := context.Background()
 	userID := uuid.New()
 	taskID := uuid.New()
@@ -129,7 +197,7 @@ func TestTaskServiceChangeStatusReturnsNotFound(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	svc := NewTaskService(repo, nil)
 	ctx := context.Background()
 	userID := uuid.New()
 	taskID := uuid.New()
@@ -150,7 +218,7 @@ func TestTaskServiceChangeStatusRejectsInvalidTransition(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	svc := NewTaskService(repo, nil)
 	ctx := context.Background()
 	userID := uuid.New()
 	taskID := uuid.New()
@@ -183,7 +251,7 @@ func TestTaskServiceUpdateTaskRejectsEmptyTitle(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	svc := NewTaskService(repo, nil)
 	ctx := context.Background()
 	userID := uuid.New()
 	taskID := uuid.New()
@@ -213,7 +281,8 @@ func TestTaskServiceUpdateTaskUpdatesFields(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	cache := mocks.NewTaskCache(t)
+	svc := NewTaskService(repo, cache)
 	ctx := context.Background()
 	userID := uuid.New()
 	taskID := uuid.New()
@@ -248,6 +317,10 @@ func TestTaskServiceUpdateTaskUpdatesFields(t *testing.T) {
 			CreatedAt:   mockTime(),
 		}, nil).
 		Once()
+	cache.EXPECT().
+		Set(ctx, svc.taskCacheKey(userID, taskID), mock.Anything, taskCacheTTL).
+		Return(nil).
+		Once()
 
 	updated, err := svc.UpdateTask(ctx, userID, taskID, &title, &description)
 
@@ -261,13 +334,18 @@ func TestTaskServiceDeleteTaskDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	cache := mocks.NewTaskCache(t)
+	svc := NewTaskService(repo, cache)
 	ctx := context.Background()
 	userID := uuid.New()
 	taskID := uuid.New()
 
 	repo.
 		On("Delete", ctx, taskID, userID).
+		Return(nil).
+		Once()
+	cache.EXPECT().
+		Delete(ctx, svc.taskCacheKey(userID, taskID)).
 		Return(nil).
 		Once()
 
@@ -281,7 +359,7 @@ func TestTaskServiceListTasksDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewTaskRepository(t)
-	svc := NewTaskService(repo)
+	svc := NewTaskService(repo, nil)
 	ctx := context.Background()
 	userID := uuid.New()
 	filter := domain.TaskFilter{Limit: 10}

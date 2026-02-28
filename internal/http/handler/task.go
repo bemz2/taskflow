@@ -21,6 +21,18 @@ func NewTaskHandler(service *service.TaskService) *TaskHandler {
 	return &TaskHandler{service: service}
 }
 
+// Create godoc
+// @Summary Create task
+// @Description Creates a task for the authenticated user.
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateTaskRequest true "Task creation payload"
+// @Success 201 {object} dto.TaskResponse
+// @Failure 400 {string} string "invalid request or validation error"
+// @Failure 401 {string} string "missing or invalid token"
+// @Router /task [post]
 func (h *TaskHandler) Create(c echo.Context) error {
 	var req dto.CreateTaskRequest
 
@@ -43,6 +55,18 @@ func (h *TaskHandler) Create(c echo.Context) error {
 	return c.JSON(http.StatusCreated, toResponse(task))
 }
 
+// Get godoc
+// @Summary Get task by ID
+// @Description Returns a single task that belongs to the authenticated user. The service checks Redis before querying PostgreSQL.
+// @Tags tasks
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Task ID" format(uuid)
+// @Success 200 {object} dto.TaskResponse
+// @Failure 400 {string} string "invalid task id"
+// @Failure 401 {string} string "missing or invalid token"
+// @Failure 404 {string} string "task not found"
+// @Router /task/{id} [get]
 func (h *TaskHandler) Get(c echo.Context) error {
 	idParam := c.Param("id")
 
@@ -65,6 +89,19 @@ func (h *TaskHandler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, toResponse(task))
 }
 
+// ChangeStatus godoc
+// @Summary Change task status
+// @Description Updates the status of a task that belongs to the authenticated user.
+// @Tags tasks
+// @Accept json
+// @Security BearerAuth
+// @Param id path string true "Task ID" format(uuid)
+// @Param request body dto.ChangeStatusRequest true "Status update payload"
+// @Success 204 "No Content"
+// @Failure 400 {string} string "invalid request, invalid id, or invalid transition"
+// @Failure 401 {string} string "missing or invalid token"
+// @Failure 404 {string} string "task not found"
+// @Router /tasks/{id}/status [patch]
 func (h *TaskHandler) ChangeStatus(c echo.Context) error {
 	idParam := c.Param("id")
 
@@ -94,6 +131,17 @@ func (h *TaskHandler) ChangeStatus(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// Delete godoc
+// @Summary Delete task
+// @Description Deletes a task that belongs to the authenticated user.
+// @Tags tasks
+// @Security BearerAuth
+// @Param id path string true "Task ID" format(uuid)
+// @Success 204 "No Content"
+// @Failure 400 {string} string "invalid task id"
+// @Failure 401 {string} string "missing or invalid token"
+// @Failure 404 {string} string "task not found"
+// @Router /tasks/{id} [delete]
 func (h *TaskHandler) Delete(c echo.Context) error {
 	idParam := c.Param("id")
 
@@ -114,6 +162,22 @@ func (h *TaskHandler) Delete(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// List godoc
+// @Summary List tasks
+// @Description Returns tasks for the authenticated user with optional pagination, filtering, search, and sorting.
+// @Tags tasks
+// @Produce json
+// @Security BearerAuth
+// @Param limit query int false "Maximum number of tasks to return"
+// @Param offset query int false "Pagination offset"
+// @Param status query string false "Task status filter" Enums(pending,in_progress,done,cancelled)
+// @Param search query string false "Case-insensitive title search"
+// @Param sort_by query string false "Sort column"
+// @Param sort_dir query string false "Sort direction" Enums(asc,desc)
+// @Success 200 {array} dto.TaskResponse
+// @Failure 401 {string} string "missing or invalid token"
+// @Failure 500 {string} string "unexpected server error"
+// @Router /tasks [get]
 func (h *TaskHandler) List(c echo.Context) error {
 	userID := c.Get("userID").(uuid.UUID)
 

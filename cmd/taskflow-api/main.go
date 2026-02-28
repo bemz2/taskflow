@@ -9,8 +9,19 @@ import (
 	"taskflow/internal"
 	"taskflow/internal/application"
 	"time"
+
+	_ "taskflow/docs"
 )
 
+// @title Taskflow API
+// @version 1.0
+// @description Task management HTTP API with JWT authentication, PostgreSQL persistence, and Redis-backed task caching.
+// @BasePath /api/v1
+// @schemes http
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Use the format: Bearer <token>
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

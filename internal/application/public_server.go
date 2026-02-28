@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 const APIV1Version = "/api/v1"
@@ -51,6 +52,7 @@ func (s *PublicServer) Configure(container *Container) (*PublicServer, error) {
 		},
 	}))
 	s.echo = e
+	s.echo.GET("/swagger/*", echoSwagger.WrapHandler)
 	s.v1(container)
 
 	return s, nil
