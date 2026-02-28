@@ -101,11 +101,11 @@ PostgreSQL
 
 Превью панели:
 
-![Панель Taskflow UI](/Users/bemz/GolandProjects/taskflow/docs/screenshots/dashboard-preview.png)
+![Панель Taskflow UI](docs/screenshots/dashboard-preview.png)
 
 Превью логов worker:
 
-![Логи worker](/Users/bemz/GolandProjects/taskflow/docs/screenshots/worker-log-preview.png)
+![Логи worker](docs/screenshots/worker-log-preview.png)
 
 ## Быстрый старт
 
