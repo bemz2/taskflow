@@ -112,6 +112,7 @@ make run
 
 - очищает директорию `bin`
 - создаёт `.env` из `.env.sample`, если `.env` ещё не существует
+- создаёт `docker-compose.yaml` из `samples/docker-compose.yaml.sample`, если файла ещё нет
 - скачивает Go-зависимости
 - устанавливает `mockery`
 - поднимает `postgres`, `redis` и `kafka` через Docker Compose

@@ -6,10 +6,10 @@ OPEN ?= open
 GOMODCACHE ?=
 MOCKERY_GOCACHE ?= /tmp/taskflow-mockery-go-build
 GOENV :=
-GO_FILES := $(shell rg --files -g '*.go' .)
+GO_FILES := $(shell find . -type f | grep '\.go$$')
 BIN_DIR := $(CURDIR)/bin
 
-.PHONY: setup ensure-env infra-up infra-down migrate run run-worker open-swagger tidy fmt test test-unit mocks swagger build build-api build-worker build-migrations clean
+.PHONY: setup ensure-configs ensure-env ensure-compose infra-up infra-down migrate run run-worker open-swagger tidy fmt test test-unit mocks swagger build build-api build-worker build-migrations clean
 
 ifneq ($(strip $(GOMODCACHE)),)
 GOENV += GOMODCACHE=$(GOMODCACHE)
@@ -17,15 +17,20 @@ endif
 
 setup:
 	$(MAKE) clean
-	$(MAKE) ensure-env
+	$(MAKE) ensure-configs
 	$(if $(strip $(GOMODCACHE)),mkdir -p $(GOMODCACHE),true)
 	$(GOENV) $(GO) mod download
 	$(GOENV) $(GO) install github.com/vektra/mockery/v2@v2.53.6
 	$(MAKE) infra-up
 	$(MAKE) migrate
 
+ensure-configs: ensure-env ensure-compose
+
 ensure-env:
 	test -f .env || cp .env.sample .env
+
+ensure-compose:
+	test -f docker-compose.yaml || cp samples/docker-compose.yaml.sample docker-compose.yaml
 
 infra-up:
 	$(DOCKER_COMPOSE) up -d postgres redis kafka
